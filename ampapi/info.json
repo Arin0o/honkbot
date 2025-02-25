@@ -4,5 +4,6 @@
     "install_msg": "Danke, dass du AMPAPI installiert hast! Nutze `!help ampapi`, um eine Liste der Befehle zu sehen.",
     "short": "AMP Server Status für Discord",
     "tags": ["AMP", "Serverstatus", "Monitoring"],
-    "type": "COG"
+    "type": "COG",
+    "requirements": ["requests"]
 }
