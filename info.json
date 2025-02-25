@@ -1,0 +1,8 @@
+{
+    "author": ["Dein Name"],
+    "description": "Eine kurze Beschreibung deines Cogs.",
+    "install_msg": "Danke, dass du MyCog installiert hast!",
+    "short": "Kurzbeschreibung",
+    "tags": ["Beispiel", "Tutorial"],
+    "type": "COG"
+}
