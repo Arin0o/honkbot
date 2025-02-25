@@ -1,8 +1,8 @@
 {
-    "author": ["Dein Name"],
-    "description": "Eine kurze Beschreibung deines Cogs.",
-    "install_msg": "Danke, dass du MyCog installiert hast!",
-    "short": "Kurzbeschreibung",
-    "tags": ["Beispiel", "Tutorial"],
+    "author": ["ArinOo"],
+    "description": "Ein Cog zur Überwachung von AMP-Servern und Status-Updates in Discord.",
+    "install_msg": "Danke, dass du AMPAPI installiert hast! Nutze `!help ampapi`, um eine Liste der Befehle zu sehen.",
+    "short": "AMP Server Status für Discord",
+    "tags": ["AMP", "Serverstatus", "Monitoring"],
     "type": "COG"
 }
