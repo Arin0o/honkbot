@@ -1,5 +1,11 @@
 import discord
+import sys
+import os
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "lib")))
+
 import requests
+
 from redbot.core import commands, Config, tasks
 from redbot.core.bot import Red
 
