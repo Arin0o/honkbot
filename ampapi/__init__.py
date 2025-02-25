@@ -1,4 +1,4 @@
-from .ampapi import AMPAPI
+from .ampapi import ampapi
 
 async def setup(bot):
-    await bot.add_cog(AMPAPI(bot))
+    await bot.add_cog(ampapi(bot))
