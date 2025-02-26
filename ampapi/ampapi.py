@@ -1,66 +1,167 @@
 import discord
-import sys
-import os
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "lib")))
-
-import requests
-
-from redbot.core import commands, Config
-from discord.ext import tasks
-
-from redbot.core.bot import Red
+import aiohttp
+from redbot.core import commands, Config, tasks
 
 class AMPAPI(commands.Cog):
-    """AMP Server Status Cog für RedBot"""
+    """AMP API Integration für RedBot"""
 
-    def __init__(self, bot: Red):
+    def __init__(self, bot):
         self.bot = bot
         self.config = Config.get_conf(self, identifier=1234567892)
-        default_guild = {
-            "amp_url": "",
-            "username": "",
-            "password": "",
-            "channel_id": None,
-            "server_instances": {},
-            "session_id": None,
-            "embed_online": None,
-            "embed_offline": None,
-            "embed_maintenance": None,
-            "server_embeds": {},
-            "alerts": {},
-            "alert_channels": {}
-        }
-        self.config.register_guild(**default_guild)
-        self.update_status.start()
+        self.config.register_guild(
+            amp_url="",
+            username="",
+            password="",
+            channel_id=None,
+            servers={},
+            embeds={
+                "online": None,
+                "offline": None,
+                "maintenance": None
+            },
+            alerts={}
+        )
+        
+        self.update_status.start()  # Startet die Status-Überwachung
 
     def cog_unload(self):
+        """Stellt sicher, dass die Loop gestoppt wird, wenn das Cog entladen wird"""
         self.update_status.cancel()
 
-    @commands.group()
-    async def ampapi(self, ctx):
-        """Verwaltung der AMP API und Serverstatus-Überwachung."""
-        if ctx.invoked_subcommand is None:
-            help_text = (
-                "**📌 1️⃣ Grundkonfiguration**\n"
-                "`!ampapi setamp <API_URL> <Benutzer> <Passwort>` - **Setzt die AMP-Login-Daten**\n"
-                "`!ampapi setchannel <#channel>` - **Legt den Discord-Channel für Status-Updates fest**\n\n"
-                "**📌 2️⃣ Server hinzufügen & verwalten**\n"
-                "`!ampapi addserver <Servername>` - **Fügt einen neuen Server zur Überwachung hinzu**\n"
-                "`!ampapi removeserver <Servername>` - **Entfernt einen Server aus der Überwachung**\n"
-                "`!ampapi rename <AlterName> <NeuerName>` - **Ändert den Namen eines überwachten Servers**\n"
-                "`!ampapi listservers` - **Zeigt alle überwachten Server an**\n"
-                "`!ampapi status <Server>` - **Zeigt den aktuellen Status eines einzelnen Servers**\n"
-                "`!ampapi forceupdate` - **Erzwingt eine sofortige Aktualisierung aller Server**\n\n"
-                "**📌 3️⃣ Embed-Nachrichten anpassen**\n"
-                "`!ampapi setembed online/offline/maintenance {JSON}` - **Setzt das Standard-Embed für einen Status**\n"
-                "`!ampapi setserverembed <Server> online/offline/maintenance {JSON}` - **Setzt ein individuelles Embed für einen Server**\n"
-                "`!ampapi getembed online/offline/maintenance` - **Zeigt das aktuelle Standard-Embed für einen Status**\n"
-                "`!ampapi getserverembed <Server> online/offline/maintenance` - **Zeigt das individuelle Server-Embed**\n\n"
-                "**📌 4️⃣ Alerts & Warnungen konfigurieren**\n"
-                "`!ampapi setalertchannel <Server> <#channel>` - **Setzt den Discord-Channel für Alerts eines Servers**\n"
-                "`!ampapi togglealert <Server> offline/maxplayers on/off` - **Aktiviert/Deaktiviert spezifische Alerts**\n"
-                "`!ampapi setalertmsg <Server> offline/maxplayers {JSON}` - **Ändert die Alert-Nachricht für verschiedene Events**\n"
+    @tasks.loop(minutes=2)
+    async def update_status(self):
+        """Diese Methode ruft alle 2 Minuten die AMP API ab und aktualisiert den Status"""
+        guilds = await self.config.all_guilds()
+
+        async with aiohttp.ClientSession() as session:
+            for guild_id, settings in guilds.items():
+                amp_url = settings.get("amp_url")
+                channel_id = settings.get("channel_id")
+                servers = settings.get("servers", {})
+
+                if not amp_url or not channel_id:
+                    continue  # Überspringen, falls nicht konfiguriert
+
+                channel = self.bot.get_channel(channel_id)
+                if not channel:
+                    continue
+
+                for server_name, server_data in servers.items():
+                    try:
+                        async with session.get(f"{amp_url}/status/{server_name}") as response:
+                            if response.status == 200:
+                                data = await response.json()
+                                status = data.get("status", "Unknown")
+
+                                embed_data = settings["embeds"].get(status.lower())
+                                embed = discord.Embed(
+                                    title=f"📡 {server_name} Status",
+                                    description=f"Server ist **{status}**",
+                                    color=discord.Color.green() if status == "Online" else discord.Color.red()
+                                )
+                                if embed_data:
+                                    embed.description = embed_data.get("description", embed.description)
+                                    embed.color = embed_data.get("color", embed.color)
+                                
+                                await channel.send(embed=embed)
+                            else:
+                                print(f"❌ Fehler beim Abrufen der API für {server_name} ({response.status})")
+                    except Exception as e:
+                        print(f"❌ Fehler bei der API-Anfrage für {server_name}: {e}")
+
+    ### 📌 Befehle zur Konfiguration der AMP-API
+
+    @commands.command()
+    async def setamp(self, ctx, amp_url: str, username: str, password: str):
+        """Setzt die AMP API Zugangsdaten"""
+        await self.config.guild(ctx.guild).amp_url.set(amp_url)
+        await ctx.send(f"✅ AMP API URL wurde auf `{amp_url}` gesetzt.")
+
+    @commands.command()
+    async def setchannel(self, ctx, channel: discord.TextChannel):
+        """Setzt den Kanal für Status-Updates"""
+        await self.config.guild(ctx.guild).channel_id.set(channel.id)
+        await ctx.send(f"✅ Status-Updates werden in {channel.mention} gepostet.")
+
+    ### 📌 Befehle zur Verwaltung von Servern
+
+    @commands.command()
+    async def addserver(self, ctx, server_name: str):
+        """Fügt einen Server zur Überwachung hinzu"""
+        async with self.config.guild(ctx.guild).servers() as servers:
+            servers[server_name] = {}
+        await ctx.send(f"✅ Server `{server_name}` wurde zur Überwachung hinzugefügt.")
+
+    @commands.command()
+    async def removeserver(self, ctx, server_name: str):
+        """Entfernt einen Server aus der Überwachung"""
+        async with self.config.guild(ctx.guild).servers() as servers:
+            if server_name in servers:
+                del servers[server_name]
+                await ctx.send(f"✅ Server `{server_name}` wurde entfernt.")
+            else:
+                await ctx.send(f"❌ Server `{server_name}` ist nicht registriert.")
+
+    ### 📌 Befehle zur Anpassung der Status-Embeds
+
+    @commands.command()
+    async def setembed(self, ctx, status: str, *, embed_text: str):
+        """Setzt das Embed für Online, Offline oder Wartung"""
+        status = status.lower()
+        if status not in ["online", "offline", "maintenance"]:
+            await ctx.send("❌ Ungültiger Status. Verwende: `online`, `offline` oder `maintenance`.")
+            return
+
+        async with self.config.guild(ctx.guild).embeds() as embeds:
+            embeds[status] = {"description": embed_text}
+
+        await ctx.send(f"✅ Das Embed für `{status}` wurde aktualisiert.")
+
+    @commands.command()
+    async def getembed(self, ctx, status: str):
+        """Zeigt das aktuelle Embed für einen Status"""
+        status = status.lower()
+        if status not in ["online", "offline", "maintenance"]:
+            await ctx.send("❌ Ungültiger Status. Verwende: `online`, `offline` oder `maintenance`.")
+            return
+
+        embeds = await self.config.guild(ctx.guild).embeds()
+        embed_data = embeds.get(status)
+
+        if embed_data:
+            embed = discord.Embed(
+                title=f"Embed für {status.capitalize()}",
+                description=embed_data.get("description", "Keine Beschreibung gesetzt."),
+                color=discord.Color.blue()
             )
-            embed = discord.Embed(title="📖 AMP API Hilfe", description=help_text, color=discord.Color.blue())
             await ctx.send(embed=embed)
+        else:
+            await ctx.send(f"❌ Kein Embed für `{status}` gesetzt.")
+
+    ### 📌 Befehle zur Verwaltung von Alerts
+
+    @commands.command()
+    async def setalert(self, ctx, alert_type: str, state: str):
+        """Aktiviert oder deaktiviert Alerts für Offline oder volle Server"""
+        alert_type = alert_type.lower()
+        if alert_type not in ["offline", "maxplayers"]:
+            await ctx.send("❌ Ungültiger Alert-Typ. Verwende: `offline` oder `maxplayers`.")
+            return
+
+        state = state.lower() in ["on", "true", "yes"]
+        async with self.config.guild(ctx.guild).alerts() as alerts:
+            alerts[alert_type] = state
+
+        await ctx.send(f"✅ Alert `{alert_type}` wurde {'aktiviert' if state else 'deaktiviert'}.")
+
+    @commands.command()
+    async def alertstatus(self, ctx):
+        """Zeigt die aktuelle Alert-Konfiguration"""
+        alerts = await self.config.guild(ctx.guild).alerts()
+        status_text = "\n".join([f"🔔 `{alert}`: {'🟢 AN' if state else '🔴 AUS'}" for alert, state in alerts.items()])
+        embed = discord.Embed(
+            title="📢 Alert-Status",
+            description=status_text or "Keine Alerts aktiviert.",
+            color=discord.Color.orange()
+        )
+        await ctx.send(embed=embed)
