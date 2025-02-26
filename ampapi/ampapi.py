@@ -6,7 +6,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "lib"
 
 import requests
 
-from redbot.core import commands, Config, tasks
+from redbot.core import commands, Config
+from discord.ext import tasks
+
 from redbot.core.bot import Red
 
 class AMPAPI(commands.Cog):
