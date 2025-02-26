@@ -1,6 +1,7 @@
 import discord
 import aiohttp
-from redbot.core import commands, Config, tasks
+from redbot.core import commands, Config
+from discord.ext import tasks
 
 class AMPAPI(commands.Cog):
     """AMP API Integration für RedBot"""
