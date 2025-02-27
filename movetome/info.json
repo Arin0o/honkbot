@@ -1,0 +1,7 @@
+{
+    "author": [ArinOo],
+    "description": "Ein Cog, um Nutzer in deinen Voice-Channel zu verschieben.",
+    "install_msg": "Danke, dass du Move To Me installiert hast! Nutze !setmtm, um einen Befehlskanal festzulegen.",
+    "short": "Move To Me",
+    "end_user_data_statement": "Dieses Cog speichert nur den Kanal, in dem Befehle akzeptiert werden."
+}
