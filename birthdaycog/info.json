@@ -1,11 +1,9 @@
 {
-    "name": "BirthdayCog",
     "author": ["ArinOo"],
     "description": "Speichert Geburtstage und sendet automatische Glückwünsche.",
     "install_msg": "🎉 Das Geburtstags-Cog wurde erfolgreich installiert! Nutze !setbday @User TT.MM, um Geburtstage zu speichern.",
-    "required_cogs": {},
-    "requirements": [],
-    "tags": ["Geburtstag", "Automatisch", "Benachrichtigung"],
-    "min_bot_version": "3.4.0",
-    "end_user_data_statement": "Dieses Cog speichert Geburtstage, die jederzeit gelöscht werden können."
+    "short": "Bday Bot",
+    "tags": ["Bday", "automate", "calendar"],
+    "type": "COG",
+    "requirements": ["requests"]
 }
