@@ -3,7 +3,7 @@
     "author": ["ArinOo"],
     "description": "Speichert Geburtstage und sendet automatische Glückwünsche.",
     "install_msg": "🎉 Das Geburtstags-Cog wurde erfolgreich installiert! Nutze !setbday @User TT.MM, um Geburtstage zu speichern.",
-    "required_cogs": [],
+    "required_cogs": {},
     "requirements": [],
     "tags": ["Geburtstag", "Automatisch", "Benachrichtigung"],
     "min_bot_version": "3.4.0",
