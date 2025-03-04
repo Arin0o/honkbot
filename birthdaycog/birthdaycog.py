@@ -71,6 +71,17 @@ class BirthdayCog(commands.Cog):
 
     @commands.command()
     @commands.guild_only()
+    @commands.admin_or_permissions(manage_guild=True)
+    async def forcebday(self, ctx):
+        """Erzwingt die Geburtstagsnachricht, unabhängig vom letzten gesendeten Datum"""
+        await ctx.send("🔄 Erzwinge Geburtstagsprüfung...")
+        await self.check_and_send_birthdays(force=True)
+        await ctx.send("✅ Geburtstagsnachricht wurde erzwungen!")
+
+
+
+    @commands.command()
+    @commands.guild_only()
     async def setbday(self, ctx, user: discord.Member, date: str):
         """Setzt den Geburtstag eines Nutzers (Format: TT.MM)"""
         try:
