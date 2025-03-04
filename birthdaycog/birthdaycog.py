@@ -1,7 +1,10 @@
 import discord
 from redbot.core import commands, Config
-from datetime import datetime, timedelta
+from datetime import datetime
 import asyncio
+import logging
+
+log = logging.getLogger("red.birthdaycog")
 
 class BirthdayCog(commands.Cog):
     """Ein Geburtstags-Cog für RedBot"""
@@ -12,7 +15,8 @@ class BirthdayCog(commands.Cog):
         
         default_guild = {
             "birthdays": {},  # Speichert Geburtstage {user_id: "DD.MM"}
-            "bday_channel": None  # Speichert den Kanal für Geburtstagsnachrichten
+            "bday_channel": None,  # Speichert den Kanal für Geburtstagsnachrichten
+            "last_sent": ""  # Speichert das letzte gesendete Datum, um doppelte Nachrichten zu vermeiden
         }
         self.config.register_guild(**default_guild)
         self.bot.loop.create_task(self.birthday_check_loop())
@@ -27,24 +31,43 @@ class BirthdayCog(commands.Cog):
             await asyncio.sleep(60)  # Prüft jede Minute
             
     async def check_and_send_birthdays(self):
-        """Sendet Geburtstagsnachrichten, wenn jemand heute Geburtstag hat"""
+        """Sendet Geburtstagsnachrichten, falls jemand heute Geburtstag hat"""
         for guild in self.bot.guilds:
             birthdays = await self.config.guild(guild).birthdays()
             bday_channel_id = await self.config.guild(guild).bday_channel()
+            last_sent = await self.config.guild(guild).last_sent()
+            today = datetime.now().strftime("%d.%m")
+
+            if last_sent == today:
+                log.info(f"🎂 Geburtstagsnachrichten wurden heute bereits gesendet.")
+                return  # Keine doppelte Nachricht senden
             
             if not bday_channel_id:
+                log.warning(f"⚠ Kein Geburtstagskanal für {guild.name} gesetzt.")
                 continue  # Kein Kanal gesetzt
                 
             channel = guild.get_channel(bday_channel_id)
             if not channel:
+                log.warning(f"⚠ Der Kanal mit der ID {bday_channel_id} existiert nicht mehr.")
                 continue  # Kanal existiert nicht mehr
             
-            today = datetime.now().strftime("%d.%m")
             for user_id, bday in birthdays.items():
                 if bday == today:
                     user = guild.get_member(int(user_id))
                     if user:
                         await channel.send(f"🎉 Herzlichen Glückwunsch zum Geburtstag, {user.mention}! 🎂")
+                        log.info(f"🎉 Nachricht für {user.display_name} gesendet!")
+            
+            # Speichert das Datum, um doppelte Nachrichten zu verhindern
+            await self.config.guild(guild).last_sent.set(today)
+
+    @commands.command()
+    @commands.guild_only()
+    async def checkbday(self, ctx):
+        """Manuelle Überprüfung der heutigen Geburtstage"""
+        await ctx.send("🔄 Prüfe Geburtstage...")
+        await self.check_and_send_birthdays()
+        await ctx.send("✅ Geburtstagsprüfung abgeschlossen.")
 
     @commands.command()
     @commands.guild_only()
@@ -99,4 +122,4 @@ class BirthdayCog(commands.Cog):
         birthdays = await self.config.guild(member.guild).birthdays()
         if str(member.id) in birthdays:
             await self.config.guild(member.guild).birthdays.clear_raw(str(member.id))
-            print(f"🗑 Geburtstag von {member} automatisch entfernt (Server verlassen).")
+            log.info(f"🗑 Geburtstag von {member} automatisch entfernt (Server verlassen).")
