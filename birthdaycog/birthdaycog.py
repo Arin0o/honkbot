@@ -30,36 +30,79 @@ class BirthdayCog(commands.Cog):
                 await self.check_and_send_birthdays()
             await asyncio.sleep(60)  # Prüft jede Minute
             
-    async def check_and_send_birthdays(self):
-        """Sendet Geburtstagsnachrichten, falls jemand heute Geburtstag hat"""
-        for guild in self.bot.guilds:
-            birthdays = await self.config.guild(guild).birthdays()
-            bday_channel_id = await self.config.guild(guild).bday_channel()
-            last_sent = await self.config.guild(guild).last_sent()
-            today = datetime.now().strftime("%d.%m")
+async def check_and_send_birthdays(self, force=False):
+    """Sendet Geburtstagsnachrichten und gibt Debug-Infos im Channel aus, wenn aktiviert"""
+    for guild in self.bot.guilds:
+        birthdays = await self.config.guild(guild).birthdays()
+        bday_channel_id = await self.config.guild(guild).bday_channel()
+        last_sent = await self.config.guild(guild).last_sent()
+        today = datetime.now().strftime("%d.%m")
 
-            if last_sent == today:
-                log.info(f"🎂 Geburtstagsnachrichten wurden heute bereits gesendet.")
-                return  # Keine doppelte Nachricht senden
-            
-            if not bday_channel_id:
-                log.warning(f"⚠ Kein Geburtstagskanal für {guild.name} gesetzt.")
-                continue  # Kein Kanal gesetzt
-                
-            channel = guild.get_channel(bday_channel_id)
-            if not channel:
-                log.warning(f"⚠ Der Kanal mit der ID {bday_channel_id} existiert nicht mehr.")
-                continue  # Kanal existiert nicht mehr
-            
-            for user_id, bday in birthdays.items():
-                if bday == today:
-                    user = guild.get_member(int(user_id))
-                    if user:
+        debug_messages = []  # Speichert Debug-Nachrichten für den Channel
+        
+        debug_messages.append(f"📅 **Starte Geburtstagsprüfung (force={force})**")
+        debug_messages.append(f"🔍 **Server:** {guild.name} ({guild.id})")
+        debug_messages.append(f"🛠 **Gespeicherte Geburtstage:** {birthdays}")
+        debug_messages.append(f"🛠 **Konfigurierter Geburtstagskanal:** {bday_channel_id}")
+        debug_messages.append(f"🛠 **Letzte gesendete Nachricht war am:** {last_sent}")
+        debug_messages.append(f"🛠 **Heutiges Datum:** {today}")
+
+        if last_sent == today and not force:
+            debug_messages.append(f"⏩ **Nachricht wurde heute bereits gesendet. (force={force})**")
+            await self.send_debug_messages(guild, debug_messages)
+            return
+        
+        if not bday_channel_id:
+            debug_messages.append(f"⚠ **Kein Geburtstagskanal für {guild.name} gesetzt.**")
+            await self.send_debug_messages(guild, debug_messages)
+            continue  # Kein Kanal gesetzt
+        
+        channel = guild.get_channel(bday_channel_id)
+        if not channel:
+            debug_messages.append(f"⚠ **Der Kanal mit der ID {bday_channel_id} existiert nicht mehr.**")
+            await self.send_debug_messages(guild, debug_messages)
+            continue  # Kanal existiert nicht mehr
+        
+        debug_messages.append(f"✅ **Geburtstagskanal gefunden:** {channel.name} ({channel.id})")
+
+        sent_messages = 0
+        for user_id, bday in birthdays.items():
+            debug_messages.append(f"🔎 **Prüfe User:** {user_id} hat Geburtstag am {bday}")
+
+            if bday == today:
+                user = guild.get_member(int(user_id))
+                if user:
+                    try:
                         await channel.send(f"🎉 Herzlichen Glückwunsch zum Geburtstag, {user.mention}! 🎂")
-                        log.info(f"🎉 Nachricht für {user.display_name} gesendet!")
-            
-            # Speichert das Datum, um doppelte Nachrichten zu verhindern
+                        debug_messages.append(f"🎉 **Nachricht für {user.display_name} gesendet!**")
+                        sent_messages += 1
+                    except discord.Forbidden:
+                        debug_messages.append(f"❌ **Fehler: Keine Berechtigung, in {channel.name} ({channel.id}) zu schreiben!**")
+                    except discord.HTTPException as e:
+                        debug_messages.append(f"❌ **Fehler beim Senden der Nachricht: {e}**")
+
+        if sent_messages == 0:
+            debug_messages.append(f"ℹ️ **Keine Geburtstagsnachrichten wurden gesendet.**")
+        
+        if not force:
             await self.config.guild(guild).last_sent.set(today)
+            debug_messages.append(f"💾 **Letztes gesendetes Datum gespeichert: {today}**")
+
+        await self.send_debug_messages(guild, debug_messages)
+
+async def send_debug_messages(self, guild, messages):
+    """Sendet Debug-Nachrichten in den Geburtstagskanal"""
+    bday_channel_id = await self.config.guild(guild).bday_channel()
+    if not bday_channel_id:
+        return
+    
+    channel = guild.get_channel(bday_channel_id)
+    if not channel:
+        return
+    
+    debug_message = "\n".join(messages)
+    await channel.send(f"🛠 **[DEBUG] Geburtstagsprüfung:**\n{debug_message}")
+
 
     @commands.command()
     @commands.guild_only()
