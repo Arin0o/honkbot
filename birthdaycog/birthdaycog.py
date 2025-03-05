@@ -21,7 +21,7 @@ class BirthdayCog(commands.Cog):
         self.config.register_guild(**default_guild)
         self.bot.loop.create_task(self.birthday_check_loop())
 
-    async def birthday_check_loop(self):
+async def birthday_check_loop(self):
     """Prüft einmal um 0 Uhr auf Geburtstage und wartet dann einen Tag."""
     await self.bot.wait_until_ready()
     while not self.bot.is_closed():
@@ -36,7 +36,6 @@ class BirthdayCog(commands.Cog):
             while datetime.now().hour == 0:  
                 log.info("🕛 Warte bis zum nächsten Tag...")
                 await asyncio.sleep(60)  # Jede Minute prüfen, ob ein neuer Tag begonnen hat
-
             
 async def check_and_send_birthdays(self, force=False):
     """Sendet Geburtstagsnachrichten oder gibt eine Nachricht aus, falls keiner Geburtstag hat (nur bei force)."""
