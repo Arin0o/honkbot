@@ -22,50 +22,67 @@ class BirthdayCog(commands.Cog):
         self.bot.loop.create_task(self.birthday_check_loop())
 
     async def birthday_check_loop(self):
-        """Prüft täglich um 0 Uhr, ob jemand Geburtstag hat"""
-        await self.bot.wait_until_ready()
-        while not self.bot.is_closed():
-            now = datetime.now()
-            if now.hour == 0 and now.minute == 0:  # Prüfen, ob es Mitternacht ist
-                await self.check_and_send_birthdays()
-            await asyncio.sleep(60)  # Prüft jede Minute
-            
-    async def check_and_send_birthdays(self, force=False):
-        """Sendet Geburtstagsnachrichten, falls jemand heute Geburtstag hat"""
-        for guild in self.bot.guilds:
-            birthdays = await self.config.guild(guild).birthdays()
-            bday_channel_id = await self.config.guild(guild).bday_channel()
-            last_sent = await self.config.guild(guild).last_sent()
-            today = datetime.now().strftime("%d.%m")
+    """Prüft einmal um 0 Uhr auf Geburtstage und wartet dann einen Tag."""
+    await self.bot.wait_until_ready()
+    while not self.bot.is_closed():
+        now = datetime.now()
 
-            if last_sent == today and not force:
-                log.info(f"🎂 Geburtstagsnachrichten wurden heute bereits gesendet. (force={force})")
-                return  # Keine doppelte Nachricht senden
+        if now.hour == 0 and now.minute == 0:  # Prüft exakt um 00:00
+            await self.check_and_send_birthdays()
+            log.info("✅ Geburtstagsprüfung abgeschlossen, warte 1 Minute...")
+            await asyncio.sleep(60)  # 1 Minute warten, damit er es nicht mehrfach tut
+
+            # Danach warten, bis ein neuer Tag beginnt
+            while datetime.now().hour == 0:  
+                log.info("🕛 Warte bis zum nächsten Tag...")
+                await asyncio.sleep(60)  # Jede Minute prüfen, ob ein neuer Tag begonnen hat
+
             
-            if not bday_channel_id:
-                log.warning(f"⚠ Kein Geburtstagskanal für {guild.name} gesetzt.")
-                continue  # Kein Kanal gesetzt
+async def check_and_send_birthdays(self, force=False):
+    """Sendet Geburtstagsnachrichten oder gibt eine Nachricht aus, falls keiner Geburtstag hat (nur bei force)."""
+    for guild in self.bot.guilds:
+        birthdays = await self.config.guild(guild).birthdays()
+        bday_channel_id = await self.config.guild(guild).bday_channel()
+        last_sent = await self.config.guild(guild).last_sent()
+        today = datetime.now().strftime("%d.%m")
+
+        if last_sent == today and not force:
+            log.info(f"🎂 Geburtstagsnachrichten wurden heute bereits gesendet. (force={force})")
+            return  # Keine doppelte Nachricht senden
+        
+        if not bday_channel_id:
+            log.warning(f"⚠ Kein Geburtstagskanal für {guild.name} gesetzt.")
+            continue  # Kein Kanal gesetzt
                 
-            channel = guild.get_channel(bday_channel_id)
-            if not channel:
-                log.warning(f"⚠ Der Kanal mit der ID {bday_channel_id} existiert nicht mehr.")
-                continue  # Kanal existiert nicht mehr
-            
-            for user_id, bday in birthdays.items():
-                if bday == today:
-                    user = guild.get_member(int(user_id))
-                    if user:
-                        try:
-                            await channel.send(f"🎉 Herzlichen Glückwunsch zum Geburtstag, {user.mention}! 🎂")
-                            log.info(f"🎉 Nachricht für {user.display_name} gesendet!")
-                        except discord.Forbidden:
-                            log.error(f"❌ Fehler: Keine Berechtigung, in {channel.name} ({channel.id}) zu schreiben!")
-                        except discord.HTTPException as e:
-                            log.error(f"❌ Fehler beim Senden der Nachricht: {e}")
+        channel = guild.get_channel(bday_channel_id)
+        if not channel:
+            log.warning(f"⚠ Der Kanal mit der ID {bday_channel_id} existiert nicht mehr.")
+            continue  # Kanal existiert nicht mehr
+        
+        log.info(f"✅ Geburtstagskanal gefunden: {channel.name} ({channel.id})")
+
+        sent_messages = 0
+        for user_id, bday in birthdays.items():
+            if bday == today:
+                user = guild.get_member(int(user_id))
+                if user:
+                    try:
+                        await channel.send(f"🎉 Herzlichen Glückwunsch zum Geburtstag, {user.mention}! 🎂")
+                        log.info(f"🎉 Nachricht für {user.display_name} gesendet!")
+                        sent_messages += 1
+                    except discord.Forbidden:
+                        log.error(f"❌ Fehler: Keine Berechtigung, in {channel.name} ({channel.id}) zu schreiben!")
+                    except discord.HTTPException as e:
+                        log.error(f"❌ Fehler beim Senden der Nachricht: {e}")
+
+        # Falls keine Nachrichten gesendet wurden und force aktiv ist, sendet der Bot eine Nachricht
+        if sent_messages == 0 and force:
+            await channel.send("ℹ️ **Heute hat leider niemand Geburtstag.** 🎂😢")
 
         # Speichert das Datum nur, wenn es keine erzwungene Nachricht ist
         if not force:
             await self.config.guild(guild).last_sent.set(today)
+
 
     @commands.command()
     @commands.guild_only()
@@ -138,3 +155,25 @@ class BirthdayCog(commands.Cog):
         if str(member.id) in birthdays:
             await self.config.guild(member.guild).birthdays.clear_raw(str(member.id))
             log.info(f"🗑 Geburtstag von {member} automatisch entfernt (Server verlassen).")
+
+    @commands.command()
+    async def bday(self, ctx, subcommand: str = None):
+        """Zeigt eine Liste aller Geburtstagsbefehle oder eine Beschreibung für einen bestimmten Befehl."""
+        help_text = {
+            "setbday": "`!setbday @User TT.MM` - Setzt den Geburtstag eines Nutzers im Format `TT.MM` (z. B. `!setbday @Max 24.09`).",
+            "delbday": "`!delbday @User` - Löscht den Geburtstag eines Nutzers.",
+            "listbday": "`!listbday` - Zeigt alle gespeicherten Geburtstage an.",
+            "setbdaychannel": "`!setbdaychannel #channel` - Setzt den Channel, in dem die Geburtstagsnachrichten gesendet werden.",
+            "checkbday": "`!checkbday` - Prüft manuell, ob heute jemand Geburtstag hat, und sendet eine Nachricht, falls ja.",
+            "forcebday": "`!forcebday` - Erzwingt die Geburtstagsprüfung. Falls niemand Geburtstag hat, gibt es eine entsprechende Nachricht.",
+            "bday": "`!bday help` - Zeigt diese Hilfe an."
+        }
+
+        if subcommand and subcommand.lower() in help_text:
+            await ctx.send(f"ℹ️ **Hilfe für `{subcommand}`:**\n{help_text[subcommand.lower()]}")
+        else:
+            help_message = "**🎂 Geburtstagsbefehle:**\n"
+            for cmd, desc in help_text.items():
+                help_message += f"• {desc}\n"
+            help_message += "\nVerwende `!bday help <befehl>` für genauere Infos."
+            await ctx.send(help_message)
