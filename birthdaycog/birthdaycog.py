@@ -22,21 +22,28 @@ class BirthdayCog(commands.Cog):
         self.bot.loop.create_task(self.birthday_check_loop())
 
     async def birthday_check_loop(self):
-        """Prüft einmal um 0 Uhr auf Geburtstage und wartet dann einen Tag."""
+        """Prüft einmal um 0 Uhr auf Geburtstage und wartet dann bis zum nächsten Tag."""
         await self.bot.wait_until_ready()
         while not self.bot.is_closed():
             now = datetime.now()
 
-            if now.hour == 0 and now.minute == 0:  # Prüft exakt um 00:00
+            # Falls es exakt 00:00 Uhr ist, Geburtstage prüfen
+            if now.hour == 0 and now.minute == 0:
                 await self.check_and_send_birthdays()
-                log.info("✅ Geburtstagsprüfung abgeschlossen, warte 1 Minute...")
-                await asyncio.sleep(60)  # 1 Minute warten, damit er es nicht mehrfach tut
+                log.info("✅ Geburtstagsprüfung abgeschlossen.")
 
-                # Danach warten, bis ein neuer Tag beginnt
-                while datetime.now().hour == 0:  
-                    log.info("🕛 Warte bis zum nächsten Tag...")
-                    await asyncio.sleep(60)  # Jede Minute prüfen, ob ein neuer Tag begonnen hat
-                
+                # Warte 60 Sekunden, um mehrfaches Senden zu verhindern
+                await asyncio.sleep(60)
+
+            # Berechne die Zeit bis Mitternacht (nächster Tag)
+            now = datetime.now()
+            seconds_until_midnight = (
+                (24 - now.hour - 1) * 3600 + (60 - now.minute - 1) * 60 + (60 - now.second)
+            )
+            log.info(f"⏳ Warte {seconds_until_midnight} Sekunden bis zur nächsten Geburtstagsprüfung.")
+            
+            # Warte, bis der nächste Tag beginnt
+            await asyncio.sleep(seconds_until_midnight)
     async def check_and_send_birthdays(self, force=False):
         """Sendet Geburtstagsnachrichten oder gibt eine Nachricht aus, falls keiner Geburtstag hat (nur bei force)."""
         for guild in self.bot.guilds:
