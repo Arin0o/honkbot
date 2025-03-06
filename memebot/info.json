@@ -1,0 +1,9 @@
+{
+    "author": ["ArinOo"],
+    "description": "Ein Cog, das automatisch Memes upvotet und die besten Memes auswertet.",
+    "install_msg": "MemeBot wurde erfolgreich installiert! Nutze `!mdma help`, um alle Befehle zu sehen.",
+    "short": "Bday Bot",
+    "tags": ["meme", "voting", "fun"],
+    "type": "COG",
+    "requirements": ["requests"]
+}
