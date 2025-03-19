@@ -1,0 +1,9 @@
+{
+    "author": ["ArinOo"],
+    "description": "Ein Cog, das automatisch Antworten der api auswertet",
+    "install_msg": "API COG wurde erfolgreich installiert! Nutze `!apihelp`, um alle Befehle zu sehen.",
+    "short": "API bot",
+    "tags": ["api", "automate", "server"],
+    "type": "COG",
+    "requirements": ["requests","tasks"]
+}
