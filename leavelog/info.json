@@ -1,0 +1,11 @@
+{
+    "author": ["ArinOo"],
+    "description": "Dokumentiert, wenn Mitglieder den Server verlassen oder gebannt werden. Optional deaktivierbar.",
+    "install_msg": "Das LeaveLog-Cog wurde erfolgreich installiert. Vergiss nicht, einen Log-Kanal mit `!leavelog channel #kanal` zu setzen.",
+    "short": "Loggt Verlassen und Banns von Mitgliedern.",
+    "tags": ["logging", "leave", "ban", "moderation", "admin"],
+    "type": "COG",
+    "permissions": [],
+    "end_user_data_statement": "Dieses Cog speichert serverseitig konfigurierte Kanäle und ob das Logging aktiv ist. Es werden keine personenbezogenen Daten gespeichert."
+  }
+  
