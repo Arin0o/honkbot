@@ -1,0 +1,9 @@
+{
+    "author": ["ArinOo"],
+    "description": "Ein Cog, welches datensammelt um eine heatmap zu erstellen ",
+    "install_msg": "HEAT cog installiert! !voiceheatmap ",
+    "short": "Heat Map",
+    "tags": [ "automate", "server"],
+    "type": "COG",
+    "requirements": ["requests","tasks","matplotlib","numpy"]
+}
