@@ -139,9 +139,18 @@ class VoiceHeatmap(commands.Cog):
             cax = ax.imshow(heatmap_array, cmap=cmap, aspect='auto', origin='upper')
             plt.colorbar(cax, ax=ax, label='Durchschnittliche Nutzerzahl')
 
-            gesamt_anzahl = sum([sum(stunde) for tag in heatmap for stunde in tag if stunde])
-            durchschn_pro_stunde = gesamt_anzahl / 24 if gesamt_anzahl else 0
-            durchschn_pro_tag = gesamt_anzahl / 7 if gesamt_anzahl else 0
+            alle_werte = [wert for tag in heatmap for stunde in tag for wert in stunde]
+            gesamt_anzahl = sum(alle_werte)
+            gesamt_punkte = len(alle_werte)
+            durchschn_pro_stunde = gesamt_anzahl / gesamt_punkte if gesamt_punkte else 0
+
+            # Ø/Tag berechnen: Durchschnitt pro Wochentag
+            durchschn_pro_tag = 0
+            for tag in heatmap:
+                werte_pro_tag = [wert for stunde in tag for wert in stunde]
+                if werte_pro_tag:
+                    durchschn_pro_tag += sum(werte_pro_tag) / len(werte_pro_tag)
+            durchschn_pro_tag /= 7 if durchschn_pro_tag else 1
             max_wert = np.max(heatmap_array)
 
             stat_text = f"Ø/h: {durchschn_pro_stunde:.1f} | Ø/Tag: {durchschn_pro_tag:.1f} | Max: {max_wert:.0f}"
